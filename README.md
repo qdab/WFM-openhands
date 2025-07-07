@@ -10,6 +10,7 @@ A simple web application for managing schedules from Excel files and sending aut
 - No database required (uses Excel/CSV as data source)
 - Simple web interface to view and manage schedules
 - Responsive design for mobile and desktop
+- Configurable email templates
 
 ## Requirements
 
