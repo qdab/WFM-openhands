@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Schedule Email Notification System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Excel Schedule Email Notification System</h1>
+    </header>
+    
+    <main>
+        <section class="controls">
+            <div class="control-group">
+                <button id="refreshBtn">Refresh Schedule</button>
+                <button id="saveBtn" disabled>Save Changes</button>
+            </div>
+            
+            <div class="control-group">
+                <input type="email" id="testEmail" placeholder="Enter email for test">
+                <button id="testEmailBtn">Send Test Email</button>
+            </div>
+        </section>
+        
+        <section class="schedule-container">
+            <h2>Schedule</h2>
+            <div class="table-responsive">
+                <table id="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>Description</th>
+                            <th>Email</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Schedule data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <button id="addRowBtn">Add Row</button>
+        </section>
+        
+        <section class="info-section">
+            <h2>Information</h2>
+            <p>This system reads schedule data from an Excel/CSV file and sends email notifications for upcoming events.</p>
+            <p>To add a new event, click the "Add Row" button and fill in the details.</p>
+            <p>To edit an existing event, click on the cell you want to edit.</p>
+            <p>To delete an event, click the "Delete" button in the Actions column.</p>
+            <p>To test the email notification system, enter an email address and click "Send Test Email".</p>
+        </section>
+    </main>
+    
+    <footer>
+        <p>&copy; 2025 Excel Schedule Email Notification System</p>
+    </footer>
+    
+    <div id="notification" class="notification">
+        <span id="notificationMessage"></span>
+        <button id="closeNotification">&times;</button>
+    </div>
+    
+    <script>
+        // Configuration
+        const API_BASE_URL = `http://localhost:{{port}}`;
+        
+        // DOM Elements
+        const scheduleTable = document.getElementById('scheduleTable');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const addRowBtn = document.getElementById('addRowBtn');
+        const testEmailBtn = document.getElementById('testEmailBtn');
+        const testEmailInput = document.getElementById('testEmail');
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const closeNotification = document.getElementById('closeNotification');
+        
+        // Schedule data
+        let scheduleData = [];
+        let hasChanges = false;
+        
+        // Show notification
+        function showNotification(message, isError = false) {
+            notificationMessage.textContent = message;
+            notification.className = isError ? 'notification error' : 'notification success';
+            notification.style.display = 'flex';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Close notification
+        closeNotification.addEventListener('click', () => {
+            notification.style.display = 'none';
+        });
+        
+        // Load schedule data
+        async function loadSchedule() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/schedule`);
+                scheduleData = await response.json();
+                renderSchedule();
+                hasChanges = false;
+                saveBtn.disabled = true;
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                showNotification('Error loading schedule data', true);
+            }
+        }
+        
+        // Render schedule table
+        function renderSchedule() {
+            const tbody = scheduleTable.querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if (scheduleData.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="6" class="empty-message">No schedule data available</td>';
+                tbody.appendChild(row);
+                return;
+            }
+            
+            scheduleData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                
+                // Date column
+                const dateCell = document.createElement('td');
+                dateCell.textContent = item.Date || '';
+                dateCell.contentEditable = true;
+                dateCell.dataset.field = 'Date';
+                dateCell.dataset.index = index;
+                dateCell.addEventListener('blur', handleCellEdit);
+                row.appendChild(dateCell);
+                
+                // Time column
+                const timeCell = document.createElement('td');
+                timeCell.textContent = item.Time || '';
+                timeCell.contentEditable = true;
+                timeCell.dataset.field = 'Time';
+                timeCell.dataset.index = index;
+                timeCell.addEventListener('blur', handleCellEdit);
+                row.appendChild(timeCell);
+                
+                // Event column
+                const eventCell = document.createElement('td');
+                eventCell.textContent = item.Event || '';
+                eventCell.contentEditable = true;
+                eventCell.dataset.field = 'Event';
+                eventCell.dataset.index = index;
+                eventCell.addEventListener('blur', handleCellEdit);
+                row.appendChild(eventCell);
+                
+                // Description column
+                const descCell = document.createElement('td');
+                descCell.textContent = item.Description || '';
+                descCell.contentEditable = true;
+                descCell.dataset.field = 'Description';
+                descCell.dataset.index = index;
+                descCell.addEventListener('blur', handleCellEdit);
+                row.appendChild(descCell);
+                
+                // Email column
+                const emailCell = document.createElement('td');
+                emailCell.textContent = item.Email || '';
+                emailCell.contentEditable = true;
+                emailCell.dataset.field = 'Email';
+                emailCell.dataset.index = index;
+                emailCell.addEventListener('blur', handleCellEdit);
+                row.appendChild(emailCell);
+                
+                // Actions column
+                const actionsCell = document.createElement('td');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.dataset.index = index;
+                deleteBtn.addEventListener('click', handleDeleteRow);
+                actionsCell.appendChild(deleteBtn);
+                row.appendChild(actionsCell);
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Handle cell edit
+        function handleCellEdit(event) {
+            const { field, index } = event.target.dataset;
+            const value = event.target.textContent.trim();
+            
+            scheduleData[index][field] = value;
+            hasChanges = true;
+            saveBtn.disabled = false;
+        }
+        
+        // Handle delete row
+        function handleDeleteRow(event) {
+            const index = parseInt(event.target.dataset.index);
+            
+            scheduleData.splice(index, 1);
+            hasChanges = true;
+            saveBtn.disabled = false;
+            renderSchedule();
+        }
+        
+        // Add new row
+        function handleAddRow() {
+            const newRow = {
+                Date: '',
+                Time: '',
+                Event: '',
+                Description: '',
+                Email: ''
+            };
+            
+            scheduleData.push(newRow);
+            hasChanges = true;
+            saveBtn.disabled = false;
+            renderSchedule();
+            
+            // Focus on the first cell of the new row
+            const tbody = scheduleTable.querySelector('tbody');
+            const lastRow = tbody.lastElementChild;
+            if (lastRow) {
+                const firstCell = lastRow.firstElementChild;
+                if (firstCell) {
+                    firstCell.focus();
+                }
+            }
+        }
+        
+        // Save changes
+        async function saveChanges() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/schedule`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(scheduleData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('Schedule saved successfully');
+                    hasChanges = false;
+                    saveBtn.disabled = true;
+                } else {
+                    showNotification('Error saving schedule: ' + (result.message || 'Unknown error'), true);
+                }
+            } catch (error) {
+                console.error('Error saving schedule:', error);
+                showNotification('Error saving schedule data', true);
+            }
+        }
+        
+        // Send test email
+        async function sendTestEmail() {
+            const email = testEmailInput.value.trim();
+            
+            if (!email) {
+                showNotification('Please enter an email address', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/test-email?email=${encodeURIComponent(email)}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(`Test email sent to ${email}`);
+                } else {
+                    showNotification('Error sending test email: ' + (result.message || 'Unknown error'), true);
+                }
+            } catch (error) {
+                console.error('Error sending test email:', error);
+                showNotification('Error sending test email', true);
+            }
+        }
+        
+        // Event listeners
+        refreshBtn.addEventListener('click', loadSchedule);
+        saveBtn.addEventListener('click', saveChanges);
+        addRowBtn.addEventListener('click', handleAddRow);
+        testEmailBtn.addEventListener('click', sendTestEmail);
+        
+        // Window beforeunload event
+        window.addEventListener('beforeunload', (event) => {
+            if (hasChanges) {
+                event.preventDefault();
+                event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return event.returnValue;
+            }
+        });
+        
+        // Initial load
+        loadSchedule();
+    </script>
+</body>
+</html>
