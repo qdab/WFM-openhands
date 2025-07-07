@@ -1,0 +1,7 @@
+Date,Time,Employee,Task,Email,NotificationSent
+2025-07-08,09:00,John Doe,Client Meeting,john.doe@example.com,No
+2025-07-08,14:30,Jane Smith,Project Review,jane.smith@example.com,No
+2025-07-09,10:00,Mike Johnson,Team Standup,mike.johnson@example.com,No
+2025-07-09,15:00,Sarah Williams,Client Call,sarah.williams@example.com,No
+2025-07-10,11:00,Robert Brown,Training Session,robert.brown@example.com,No
+2025-07-10,16:30,Emily Davis,Project Deadline,emily.davis@example.com,No
