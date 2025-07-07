@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .status-yes {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .status-no {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        .action-cell {
+            text-align: center;
+        }
+        .test-button {
+            background-color: #2196F3;
+        }
+        .test-button:hover {
+            background-color: #0b7dda;
+        }
+        .last-updated {
+            font-style: italic;
+            color: #666;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Schedule Manager</h1>
+        
+        <div class="controls">
+            <div>
+                <button id="refreshButton">Refresh Schedule</button>
+                <span id="lastUpdated" class="last-updated"></span>
+            </div>
+        </div>
+        
+        <div id="scheduleContainer">
+            <div class="loading">Loading schedule data...</div>
+        </div>
+    </div>
+
+    <script>
+        // Function to format date for display
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString();
+        }
+
+        // Function to load schedule data
+        async function loadSchedule() {
+            try {
+                const response = await fetch('/api/schedule');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch schedule data');
+                }
+                
+                const data = await response.json();
+                displaySchedule(data);
+                
+                // Update last updated time
+                const now = new Date();
+                document.getElementById('lastUpdated').textContent = 
+                    `Last updated: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+                document.getElementById('scheduleContainer').innerHTML = 
+                    `<div class="loading">Error loading schedule data: ${error.message}</div>`;
+            }
+        }
+
+        // Function to display schedule data
+        function displaySchedule(data) {
+            if (!data || data.length === 0) {
+                document.getElementById('scheduleContainer').innerHTML = 
+                    '<div class="loading">No schedule data available</div>';
+                return;
+            }
+            
+            // Create table
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Employee</th>
+                            <th>Task</th>
+                            <th>Email</th>
+                            <th>Notification Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // Add rows
+            data.forEach((item, index) => {
+                const statusClass = item.NotificationSent.toLowerCase() === 'yes' ? 'status-yes' : 'status-no';
+                
+                tableHtml += `
+                    <tr>
+                        <td>${item.Date}</td>
+                        <td>${item.Time}</td>
+                        <td>${item.Employee}</td>
+                        <td>${item.Task}</td>
+                        <td>${item.Email}</td>
+                        <td><span class="status ${statusClass}">${item.NotificationSent}</span></td>
+                        <td class="action-cell">
+                            <button class="test-button" onclick="sendTestNotification(${index})">
+                                Send Test Email
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('scheduleContainer').innerHTML = tableHtml;
+        }
+
+        // Function to refresh schedule data
+        async function refreshSchedule() {
+            try {
+                const response = await fetch('/api/refresh', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to refresh schedule');
+                }
+                
+                // Reload the schedule data
+                loadSchedule();
+            } catch (error) {
+                console.error('Error refreshing schedule:', error);
+                alert(`Error refreshing schedule: ${error.message}`);
+            }
+        }
+
+        // Function to send a test notification
+        async function sendTestNotification(index) {
+            try {
+                const response = await fetch('/api/send_test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `index=${index}`
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to send test notification');
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Test notification sent successfully!');
+                    // Reload the schedule to update notification status
+                    loadSchedule();
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                console.error('Error sending test notification:', error);
+                alert(`Error sending test notification: ${error.message}`);
+            }
+        }
+
+        // Add event listeners
+        document.getElementById('refreshButton').addEventListener('click', refreshSchedule);
+        
+        // Load schedule data when page loads
+        document.addEventListener('DOMContentLoaded', loadSchedule);
+    </script>
+</body>
+</html>
