@@ -9,6 +9,7 @@ A simple web application for managing schedules from Excel files and sending aut
 - No external dependencies (uses Python standard library)
 - No database required (uses Excel/CSV as data source)
 - Simple web interface to view and manage schedules
+- Responsive design for mobile and desktop
 
 ## Requirements
 
